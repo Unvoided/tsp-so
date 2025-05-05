@@ -1,0 +1,14 @@
+{
+  "name": "tsplib-js",
+  "description": "Javascript library to read and extract contents from a .tsp file",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "author": "8200383",
+  "devDependencies": {
+    "@types/node": "^22.15.3"
+  }
+}
