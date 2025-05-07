@@ -1,76 +1,74 @@
-import { type Node } from "./loader.ts";
+import type { TspFile, Node } from "./loader.ts";
 
-export class TabuSearch {
+function distance(a: Node, b: Node): number {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
 
-    constructor() {}
-
-    solve(nodes: Node[]) {
-        const matrix = this.generateNeighbours(nodes);
-        const intialSolution = this.generateInitialSolution(matrix);
-        return this.calculateTourCost(intialSolution, matrix);
+function totalDistance(tour: Node[]): number {
+    let dist = 0;
+    for (let i = 0; i < tour.length - 1; i++) {
+        const d = distance(tour[i], tour[i + 1]);
+        dist += d;
     }
+    const lastLeg = distance(tour[tour.length - 1], tour[0]);
+    dist += lastLeg;
+    return dist;
+}
 
-    private calculateEuclideanDistance(a: Node, b: Node): number {
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        return Math.round(Math.sqrt(dx * dx + dy * dy));
-    }
+function twoOptSwap(route: Node[], i: number, k: number): Node[] {
+    return [
+        ...route.slice(0, i),
+        ...route.slice(i, k + 1).reverse(),
+        ...route.slice(k + 1),
+    ];
+}
 
-    private generateNeighbours(nodes: Node[]): number[][] {
-        const n = nodes.length;
-        const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20): [Node[], number] {
+    let currentSolution = [...tsp.nodes];
+    let bestSolution = [...currentSolution];
+    let bestDistance = totalDistance(bestSolution);
 
-        for (let i = 0; i < n; i++) {
-            for (let j = 0; j < n; j++) {
-                if (i !== j) {
-                    matrix[i][j] = this.calculateEuclideanDistance(nodes[i], nodes[j]);
+    const tabuList: Set<string> = new Set();
+    const tabuQueue: string[] = [];
+
+    for (let iter = 0; iter < maxIterations; iter++) {
+        let bestNeighbor: Node[] | null = null;
+        let bestNeighborDistance = Infinity;
+        let moveMade = "";
+
+        for (let i = 1; i < currentSolution.length - 1; i++) {
+            for (let k = i + 1; k < currentSolution.length; k++) {
+                const neighbor = twoOptSwap(currentSolution, i, k);
+                const moveKey = `${currentSolution[i].id}-${currentSolution[k].id}`;
+                const dist = totalDistance(neighbor);
+
+                if (!tabuList.has(moveKey) || dist < bestDistance) {
+                    if (dist < bestNeighborDistance) {
+                        bestNeighbor = neighbor;
+                        bestNeighborDistance = dist;
+                        moveMade = moveKey;
+                    }
                 }
             }
         }
 
-        return matrix;
+        if (bestNeighbor) {
+            currentSolution = bestNeighbor;
+            if (bestNeighborDistance < bestDistance) {
+                bestDistance = bestNeighborDistance;
+                bestSolution = [...bestNeighbor];
+            }
+
+            tabuList.add(moveMade);
+            tabuQueue.push(moveMade);
+            if (tabuQueue.length > tabuTenure) {
+                const removed = tabuQueue.shift();
+                if (removed) tabuList.delete(removed);
+            }
+        }
     }
 
-    private calculateTourCost(tour: number[], matrix: number[][]): number {
-        let cost = 0;
-        const n = tour.length;
-        for (let i = 0; i < n - 1; i++) {
-          cost += matrix[tour[i]][tour[i + 1]];
-        }
-        // Return to start
-        cost += matrix[tour[n - 1]][tour[0]];
-        return cost;
-      }
-      
-
-    private generateInitialSolution(matrix: number[][]): number[] {
-        const n = matrix.length;
-        const visited = Array(n).fill(false);
-        const tour: number[] = [];
-      
-        let current = 0;
-        tour.push(current);
-        visited[current] = true;
-      
-        for (let step = 1; step < n; step++) {
-          let nearest = -1;
-          let minDist = Infinity;
-      
-          for (let j = 0; j < n; j++) {
-            if (!visited[j] && matrix[current][j] < minDist) {
-              minDist = matrix[current][j];
-              nearest = j;
-            }
-          }
-      
-          if (nearest !== -1) {
-            tour.push(nearest);
-            visited[nearest] = true;
-            current = nearest;
-          }
-        }
-      
-        return tour;
-      }
-      
+    return [bestSolution, bestDistance];
 }
