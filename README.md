@@ -1,13 +1,16 @@
-# 🧻 `tsplib-js` Javascript library to read and extract contents from a `.tsp` file
+# TSP SO
 
-TSPLIB is a library of sample instances for the TSP (and related problems) from various sources and of various types.
+## Run the project
 
-Originally based on [tsplib](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/).
+First check node version with `node --version`
 
-## Usage
+### Node v24
+```
+node src/index.ts
+```
 
-```ts
-import { readTspFile } from "./index.ts"
-
-console.log(await readTspFile("./foobar.tsp"));
+### Below Node v24
+```
+npm i -g tsx
+tsx src/index.ts
 ```
