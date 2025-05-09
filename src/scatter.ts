@@ -68,7 +68,22 @@ function combineTours(t1: Node[], t2: Node[]): Node[] {
     return child;
 }
 
-export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5, candidateSize = 30) {
+/**
+ * Performs a scatter search algorithm to solve the Traveling Salesman Problem (TSP).
+ * 
+ * The algorithm generates an initial candidate pool of tours, improves them using the 2-opt heuristic,
+ * and iteratively combines and improves solutions to find an optimal or near-optimal tour.
+ * 
+ * @param tsp - The TSP file containing the nodes to visit.
+ * @param maxIterations - The maximum number of iterations to perform (default is 100).
+ * @param refSetSize - The size of the reference set used for combining solutions (default is 5).
+ * @param candidateSize - The number of initial candidate solutions to generate (default is 30).
+ * @returns A tuple containing:
+ *   - The best tour found as an array of nodes.
+ *   - The total distance of the best tour.
+ *   - The distance of the initial best tour before iterations.
+ */
+export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5, candidateSize = 30): [Node[], number, number] {
     const candidatePool: Node[][] = [];
 
     for (let i = 0; i < candidateSize; i++) {
@@ -78,6 +93,7 @@ export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5,
     }
 
     candidatePool.sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b));
+    const initialDistance = calculateTourDistance(candidatePool[0]);
     let referenceSet = candidatePool.slice(0, refSetSize);
 
     for (let iter = 0; iter < maxIterations; iter++) {
@@ -95,5 +111,5 @@ export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5,
         referenceSet = [...referenceSet, ...newSolutions].sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b))
     }
 
-    return [referenceSet[0], calculateTourDistance(referenceSet[0])];
+    return [referenceSet[0], calculateTourDistance(referenceSet[0]), initialDistance];
 }

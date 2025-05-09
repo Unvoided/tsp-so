@@ -2,31 +2,32 @@ import type { TspFile, Node } from "./loader.ts";
 import { calculateTourDistance } from "./common.ts";
 
 /**
- * Performs the Tabu Search algorithm to solve the Traveling Salesman Problem (TSP).
+ * Performs the Tabu Search algorithm to find an optimized solution for the Traveling Salesman Problem (TSP).
  *
  * @param tsp - An object representing the TSP problem, containing the nodes to visit.
  * @param maxIterations - The maximum number of iterations to perform (default is 500).
  * @param tabuTenure - The number of iterations a move remains in the tabu list (default is 20).
- * @returns A tuple containing the best solution found (array of nodes) and its total distance.
+ * @returns A tuple containing:
+ *   - The best solution found as an array of nodes.
+ *   - The total distance of the best solution.
+ *   - The initial distance of the starting solution.
  *
- * The algorithm starts with an initial solution and iteratively improves it by exploring
- * neighboring solutions generated using the 2-opt swap method. A tabu list is maintained
- * to prevent revisiting recently explored solutions, while allowing exceptions for solutions
- * that improve the best-known distance.
- *
- * The tabu list is implemented as a set, and a queue is used to manage the tenure of moves.
- * If the queue exceeds the specified tabu tenure, the oldest move is removed from the tabu list.
+ * The algorithm iteratively improves the solution by exploring neighbors and avoiding revisiting
+ * recently explored moves using a tabu list. It also allows moves that improve the best solution
+ * even if they are in the tabu list.
  */
-export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20) {
+export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20): [Node[], number, number] {
   let currentSolution = [...tsp.nodes];
   let bestSolution = [...currentSolution];
-  let bestDistance = Infinity;
+  let bestDistance = calculateTourDistance(currentSolution);
+
+  const initialDistance = bestDistance;
 
   const tabuList: Set<string> = new Set();
   const tabuQueue: string[] = [];
 
   for (let iter = 0; iter < maxIterations; iter++) {
-    let bestNeighbor: Node[] = [];
+    let bestNeighbor: Node[] | null = null;
     let bestNeighborDistance = Infinity;
     let moveMade = "";
 
@@ -36,17 +37,25 @@ export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20) {
           ...currentSolution.slice(0, i),
           ...currentSolution.slice(i, k + 1).reverse(),
           ...currentSolution.slice(k + 1),
-        ]
-        const moveKey = `${currentSolution[i].id}-${currentSolution[k].id}`;
+        ];
+
+        const idA = currentSolution[i].id;
+        const idB = currentSolution[k].id;
+        const moveKey = `${Math.min(idA, idB)}-${Math.max(idA, idB)}`;
+
         const currentDistance = calculateTourDistance(currentNeighbor);
 
-        if (!tabuList.has(moveKey) || currentDistance < bestNeighborDistance) {
-          bestNeighbor = currentNeighbor;
-          bestNeighborDistance = currentDistance;
-          moveMade = moveKey;
+        if (!tabuList.has(moveKey) || currentDistance < bestDistance) {
+          if (currentDistance < bestNeighborDistance) {
+            bestNeighbor = currentNeighbor;
+            bestNeighborDistance = currentDistance;
+            moveMade = moveKey;
+          }
         }
       }
     }
+
+    if (!bestNeighbor) continue;
 
     currentSolution = bestNeighbor;
 
@@ -57,12 +66,12 @@ export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20) {
 
     tabuList.add(moveMade);
     tabuQueue.push(moveMade);
-
     if (tabuQueue.length > tabuTenure) {
       const removed = tabuQueue.shift();
       if (removed) tabuList.delete(removed);
     }
   }
 
-  return [bestSolution, bestDistance];
+  return [bestSolution, bestDistance, initialDistance];
 }
+

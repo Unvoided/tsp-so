@@ -11,5 +11,8 @@
   "author": "8200383",
   "devDependencies": {
     "@types/node": "^22.15.3"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }
