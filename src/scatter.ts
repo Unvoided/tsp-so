@@ -3,21 +3,22 @@ import type { Node, TspFile } from './loader.ts';
 
 function shuffle<T>(array: T[]): T[] {
     const arr = [...array];
-
     for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-
     return arr;
 }
 
-function twoOptImproved(tour: Node[]): Node[] {
+function twoOptImproved(tour: Node[], maxLoops = 100): Node[] {
     let best = [...tour];
+    let bestDistance = calculateTourDistance(best);
     let improved = true;
+    let loops = 0;
 
-    while (improved) {
+    while (improved && loops < maxLoops) {
         improved = false;
+        loops++;
 
         for (let i = 1; i < best.length - 1; i++) {
             for (let k = i + 1; k < best.length; k++) {
@@ -26,9 +27,11 @@ function twoOptImproved(tour: Node[]): Node[] {
                     ...best.slice(i, k + 1).reverse(),
                     ...best.slice(k + 1),
                 ];
+                const newDistance = calculateTourDistance(newTour);
 
-                if (calculateTourDistance(newTour) < calculateTourDistance(best)) {
+                if (newDistance < bestDistance) {
                     best = newTour;
+                    bestDistance = newDistance;
                     improved = true;
                 }
             }
@@ -53,13 +56,10 @@ function combineTours(t1: Node[], t2: Node[]): Node[] {
     }
 
     let idx = 0;
-
     for (let i = 0; i < size; i++) {
         const node = t2[i];
-
         if (!used.has(node.id)) {
             while (child[idx]) idx++;
-
             child[idx] = node;
             used.add(node.id);
         }
@@ -68,22 +68,12 @@ function combineTours(t1: Node[], t2: Node[]): Node[] {
     return child;
 }
 
-/**
- * Performs a scatter search algorithm to solve the Traveling Salesman Problem (TSP).
- * 
- * The algorithm generates an initial candidate pool of tours, improves them using the 2-opt heuristic,
- * and iteratively combines and improves solutions to find an optimal or near-optimal tour.
- * 
- * @param tsp - The TSP file containing the nodes to visit.
- * @param maxIterations - The maximum number of iterations to perform (default is 100).
- * @param refSetSize - The size of the reference set used for combining solutions (default is 5).
- * @param candidateSize - The number of initial candidate solutions to generate (default is 30).
- * @returns A tuple containing:
- *   - The best tour found as an array of nodes.
- *   - The total distance of the best tour.
- *   - The distance of the initial best tour before iterations.
- */
-export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5, candidateSize = 30): [Node[], number, number] {
+export function scatterSearch(
+    tsp: TspFile,
+    maxIterations = 100,
+    refSetSize = 5,
+    candidateSize = 30
+): [Node[], number, number] {
     const candidatePool: Node[][] = [];
 
     for (let i = 0; i < candidateSize; i++) {
@@ -93,8 +83,10 @@ export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5,
     }
 
     candidatePool.sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b));
-    const initialDistance = calculateTourDistance(candidatePool[0]);
     let referenceSet = candidatePool.slice(0, refSetSize);
+    let bestTour = referenceSet[0];
+    let bestDistance = calculateTourDistance(bestTour);
+    const initialDistance = bestDistance;
 
     for (let iter = 0; iter < maxIterations; iter++) {
         const newSolutions: Node[][] = [];
@@ -103,13 +95,21 @@ export function scatterSearch(tsp: TspFile, maxIterations = 100, refSetSize = 5,
             for (let j = i + 1; j < referenceSet.length; j++) {
                 const child = combineTours(referenceSet[i], referenceSet[j]);
                 const improved = twoOptImproved(child);
-
                 newSolutions.push(improved);
             }
         }
 
-        referenceSet = [...referenceSet, ...newSolutions].sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b))
+        const combined = [...referenceSet, ...newSolutions];
+        combined.sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b));
+        const newBest = combined[0];
+        const newBestDistance = calculateTourDistance(newBest);
+
+        if (newBestDistance >= bestDistance) break;
+
+        bestTour = newBest;
+        bestDistance = newBestDistance;
+        referenceSet = combined.slice(0, refSetSize);
     }
 
-    return [referenceSet[0], calculateTourDistance(referenceSet[0]), initialDistance];
+    return [bestTour, bestDistance, initialDistance];
 }

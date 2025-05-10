@@ -23,10 +23,11 @@ const results = await Promise.all(
 
 
         const scatterBegin = performance.now();
-        const [, scatterResult, scatterInitial] = scatterSearch(tspFile, 10, 20, 1);
+        const [, scatterResult, scatterInitial] = scatterSearch(tspFile, 100, 5, 30);
         const scatterTime = ((performance.now() - scatterBegin) / 1000).toFixed(1) + "s";
 
-        return {
+
+        const result = {
             file: tspFile.name,
             optimal: optimalFile,
             tabuResult: Math.round(tabuResult),
@@ -42,16 +43,12 @@ const results = await Promise.all(
                 Math.abs((Math.round(scatterResult) - optimalFile) / optimalFile) * 100
             ).toFixed(2) + "%",
         };
+
+        console.table([result]);
+
+        return result;
     })
 );
-
-Promise.all(results).then((results) => {
-    results.forEach((result) => {
-        console.log(result.file);
-        console.log("Tabu Search:", result.tabuResult, "Time:", result.tabuTime);
-        console.log("Scatter Search:", result.scatterResult, "Time:", result.scatterTime);
-    });
-});
 
 const sheetData = [
     [
