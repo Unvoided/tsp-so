@@ -30,14 +30,14 @@ const results = await Promise.all(
         const result = {
             file: tspFile.name,
             optimal: optimalFile,
-            tabuResult: Math.round(tabuResult),
             tabuInitial: Math.round(tabuInitial),
+            tabuResult: Math.round(tabuResult),
             tabuTime,
             tabuDeviation: (
                 Math.abs((Math.round(tabuResult) - optimalFile) / optimalFile) * 100
             ).toFixed(2) + "%",
-            scatterResult: Math.round(scatterResult),
             scatterInitial: Math.round(scatterInitial),
+            scatterResult: Math.round(scatterResult),
             scatterTime,
             scatterDeviation: (
                 Math.abs((Math.round(scatterResult) - optimalFile) / optimalFile) * 100
