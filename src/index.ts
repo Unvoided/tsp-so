@@ -1,91 +1,78 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { antColonyOptimization } from "./ant.ts";
 import { readTspFile } from "./loader.ts";
 import { scatterSearch } from "./scatter.ts";
 import { tabuSearch } from "./tabu.ts";
-import { antColonyOptimization } from "./ant.ts";
-import * as path from "node:path";
-import * as fs from "node:fs";
 
 /**
  * Files.
  */
+const fileNames = [
+  "a280",
+  "bier127",
+  "brazil58",
+  "ch130",
+  "ch150",
+  "d198",
+  "eil101",
+  "gil262",
+  "kroA100",
+  "kroA150",
+  "kroA200",
+  "kroB100",
+  "kroB150",
+  "kroB200",
+  "kroC100",
+  "kroD100",
+  "kroE100",
+  "lin105",
+  "pr107",
+  "pr124",
+  "pr136",
+  "pr144",
+  "pr152",
+  "pr226",
+  "pr264",
+  "pr299",
+  "rat195",
+  "rd100",
+  "ts225",
+  "tsp225",
+  "u159",
+];
 const optimalFile = JSON.parse(
   fs.readFileSync(path.join("./assets", "optimal.json"), "utf-8")
 );
-const tspFile = await readTspFile(path.join("./assets/tsp", "a280.tsp"));
 
 /**
- * Optimal solution.
+ * Loop.
  */
-const optimal = optimalFile[tspFile.name!];
+for (const fileName of fileNames) {
+  const file = await readTspFile(
+    path.join("./assets/tsp", fileName.concat(".tsp"))
+  );
+  const optimal = optimalFile[fileName];
+  const [ant, tabu, scatter] = await Promise.all([
+    antColonyOptimization(file, 1000, 40, 1, 10, 0.3, 500),
+    tabuSearch(file, 500, 20),
+    scatterSearch(file, 100, 5, 30),
+  ]);
 
-/**
- * Ant Colony Optimization.
- */
-console.time("Ant Colony Optimization");
-
-const antBegin = performance.now();
-const [, antResult] = antColonyOptimization(tspFile, 100, 20, 1, 5, 0.5, 100);
-const antTime = (performance.now() - antBegin) / 1000;
-const antDeviation =
-  Math.abs((Math.round(antResult) - optimal) / optimal) * 100;
-
-console.timeEnd("Ant Colony Optimization");
-console.table([
-  {
-    'File': tspFile.name,
-    'Optimal (s)': optimal,
-    'Time (s)': Math.round(antTime),
-    'Cost': Math.round(antResult),
-    'Deviation (%)': Math.round(antDeviation),
-  },
-]);
-
-/**
- * Tabu Search.
- */
-console.time("Tabu Search");
-
-const tabuBegin = performance.now();
-const [, tabuResult, tabuInitial] = tabuSearch(
-  tspFile,
-  tspFile.nodes.length,
-  Math.max(5, Math.floor(Math.sqrt(tspFile.nodes.length)))
-);
-const tabuTime = (performance.now() - tabuBegin) / 1000;
-const tabuDeviation =
-  Math.abs((Math.round(tabuResult) - optimal) / optimal) * 100;
-
-console.timeEnd("Tabu Search");
-console.table([
-  {
-    'File': tspFile.name,
-    'Optimal (s)': optimal,
-    'Initial Cost': Math.round(tabuInitial),
-    'Cost': Math.round(tabuResult),
-    'Duration (s)': Math.round(tabuTime),
-    'Deviation (%)': Math.round(tabuDeviation),
-  },
-]);
-
-/**
- * Scatter Search.
- */
-console.time("Scatter Search");
-
-const scatterBegin = performance.now();
-const [, scatterResult, scatterInitial] = scatterSearch(tspFile, 100, 5, 30);
-const scatterTime = (performance.now() - scatterBegin) / 1000;
-const scatterDeviation =
-  Math.abs((Math.round(scatterResult) - optimal) / optimal) * 100;
-
-console.timeEnd("Scatter Search");
-console.table([
-  {
-    'File': tspFile.name,
-    'Optimal (s)': optimal,
-    'Initial Cost': Math.round(scatterInitial),
-    'Cost': Math.round(scatterResult),
-    'Duration (s)': Math.round(scatterTime),
-    'Deviation (%)': Math.round(scatterDeviation),
-  },
-]);
+  console.table([
+    {
+      file: file.name,
+      optimal,
+      antCost: ant.bestDistance,
+      antTime: ant.performance,
+      antDeviation: Math.abs((ant.bestDistance - optimal) / optimal) * 100,
+      tabuCost: tabu.bestDistance,
+      tabuTime: tabu.performance,
+      tabuDeviation: Math.abs((tabu.bestDistance - optimal) / optimal) * 100,
+      scatterCost: scatter.bestDistance,
+      scatterTime: scatter.performance,
+      scatterDeviation:
+        Math.abs((scatter.bestDistance - optimal) / optimal) * 100,
+    },
+  ]);
+}

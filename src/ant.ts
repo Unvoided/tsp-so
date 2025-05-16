@@ -48,7 +48,8 @@ export function antColonyOptimization(
   beta = 5,
   evaporation = 0.5,
   Q = 100
-): [Node[], number] {
+) {
+  const performanceBegin = performance.now();
   const n = tsp.nodes.length;
   const distances = Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) =>
@@ -57,7 +58,7 @@ export function antColonyOptimization(
   );
   const pheromones = Array.from({ length: n }, () => Array(n).fill(1));
   let bestPath: Node[] = [];
-  let bestLength = Infinity;
+  let bestDistance = Infinity;
 
   for (let iter = 0; iter < iterations; iter++) {
     const allPaths: number[][] = [];
@@ -67,6 +68,7 @@ export function antColonyOptimization(
       const path: number[] = [];
       const unvisited = new Set<number>(Array.from({ length: n }, (_, i) => i));
       let current = Math.floor(Math.random() * n);
+
       path.push(current);
       unvisited.delete(current);
 
@@ -88,8 +90,8 @@ export function antColonyOptimization(
       allPaths.push(path);
       allLengths.push(len);
 
-      if (len < bestLength) {
-        bestLength = len;
+      if (len < bestDistance) {
+        bestDistance = len;
         bestPath = path.map((i) => tsp.nodes[i]);
       }
     }
@@ -115,5 +117,11 @@ export function antColonyOptimization(
     }
   }
 
-  return [bestPath, bestLength];
+  const performanceEnd = performance.now();
+
+  return {
+    bestPath,
+    bestDistance,
+    performance: Math.round((performanceEnd - performanceBegin) / 1000),
+  };
 }
