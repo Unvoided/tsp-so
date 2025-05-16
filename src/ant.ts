@@ -2,14 +2,6 @@ import { calculateEuclideanDistance, calculateTourDistance } from "./common.ts";
 import type { Node, TspFile } from "./loader.ts";
 
 /**
- * Initializes a pheromone matrix with default value of 1.
- */
-function initializePheromones(n: number): number[][] {
-  const pheromones = Array.from({ length: n }, () => Array(n).fill(1));
-  return pheromones;
-}
-
-/**
  * Chooses the next node to visit based on pheromone levels and heuristic desirability.
  */
 function chooseNextNode(
@@ -63,8 +55,7 @@ export function antColonyOptimization(
       calculateEuclideanDistance(tsp.nodes[i], tsp.nodes[j])
     )
   );
-  const pheromones = initializePheromones(n);
-
+  const pheromones = Array.from({ length: n }, () => Array(n).fill(1));
   let bestPath: Node[] = [];
   let bestLength = Infinity;
 
