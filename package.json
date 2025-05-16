@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit",
-    "dev": "TSP_FILE=a280.tsp tsx ./src/index.ts"
+    "dev": "node ./src/index.ts"
   },
   "author": "8200383",
   "devDependencies": {
