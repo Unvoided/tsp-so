@@ -16,7 +16,8 @@ import { calculateTourDistance } from "./common.ts";
  * recently explored moves using a tabu list. It also allows moves that improve the best solution
  * even if they are in the tabu list.
  */
-export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20): [Node[], number, number] {
+export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20) {
+  const performanceBegin = performance.now();
   let currentSolution = [...tsp.nodes];
   let bestSolution = [...currentSolution];
   let bestDistance = calculateTourDistance(currentSolution);
@@ -72,6 +73,12 @@ export function tabuSearch(tsp: TspFile, maxIterations = 500, tabuTenure = 20): 
     }
   }
 
-  return [bestSolution, bestDistance, initialDistance];
-}
+  const performanceEnd = performance.now();
 
+  return {
+    bestSolution,
+    bestDistance,
+    initialDistance,
+    performance: Math.round((performanceEnd - performanceBegin) / 1000),
+  };
+}
