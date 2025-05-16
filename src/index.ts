@@ -1,10 +1,19 @@
 import { readTspFile } from "./loader.ts";
 import { scatterSearch } from "./scatter.ts";
 import { tabuSearch } from "./tabu.ts";
+import { antColonyOptimization } from "./ant.ts";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import * as XLSX from "xlsx";
 
+
+const tspFile = await readTspFile(path.join("./assets/tsp", "a280.tsp"));
+
+const [bestPath, bestLength] = antColonyOptimization(tspFile)
+
+console.log(bestPath.length, bestLength, 'ant')
+
+/*
 const files = fs.readdirSync(path.join("./assets/tsp"));
 const optimal = JSON.parse(fs.readFileSync(path.join("./assets", "optimal.json"), "utf-8"));
 
@@ -89,3 +98,4 @@ const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 fs.writeFileSync(path.join(outputDir, "tsp_results.xlsx"), buffer);
 
 console.log("Results saved to output/tsp_results.xlsx");
+*/
