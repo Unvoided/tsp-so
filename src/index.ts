@@ -11,7 +11,6 @@ import { tabuSearch } from "./tabu.ts";
 const fileNames = [
   "a280",
   "bier127",
-  "brazil58",
   "ch130",
   "ch150",
   "d198",
@@ -46,33 +45,41 @@ const optimalFile = JSON.parse(
 );
 
 /**
- * Loop.
+ * Run algorithm.
  */
-for (const fileName of fileNames) {
-  const file = await readTspFile(
-    path.join("./assets/tsp", fileName.concat(".tsp"))
-  );
-  const optimal = optimalFile[fileName];
-  const [ant, tabu, scatter] = await Promise.all([
-    antColonyOptimization(file, 1000, 40, 1, 10, 0.3, 500),
-    tabuSearch(file, 500, 20),
-    scatterSearch(file, 100, 5, 30),
-  ]);
+async function runAlgorithm(
+  fileNames: string[],
+  algorithm: "ant" | "tabu" | "scatter",
+  params: number[]
+) {
+  const results = [];
 
-  console.table([
-    {
+  for (const fileName of fileNames) {
+    const file = await readTspFile(
+      path.join("./assets/problems", fileName.concat(".tsp"))
+    );
+    const optimal = optimalFile[fileName];
+    const algorithms = {
+      ant: () => antColonyOptimization(file, ...params), // e.g., [1000, 40, 1, 10, 0.3, 500]
+      tabu: () => tabuSearch(file, ...params), // e.g., [100, 20]
+      scatter: () => scatterSearch(file, ...params), // e.g., [100, 5, 30]
+    };
+    const result = algorithms[algorithm]();
+
+    results.push({
       file: file.name,
-      optimal,
-      antCost: ant.bestDistance,
-      antTime: ant.performance,
-      antDeviation: Math.abs((ant.bestDistance - optimal) / optimal) * 100,
-      tabuCost: tabu.bestDistance,
-      tabuTime: tabu.performance,
-      tabuDeviation: Math.abs((tabu.bestDistance - optimal) / optimal) * 100,
-      scatterCost: scatter.bestDistance,
-      scatterTime: scatter.performance,
-      scatterDeviation:
-        Math.abs((scatter.bestDistance - optimal) / optimal) * 100,
-    },
-  ]);
+      optimal: Math.round(optimal),
+      cost: Math.round(result.bestDistance),
+      time: (result.performance / 1000).toFixed(1).concat("s"),
+      deviation: (Math.abs((result.bestDistance - optimal) / optimal) * 100)
+        .toFixed(2)
+        .concat("%"),
+    });
+  }
+
+  console.table(results);
 }
+
+//runAlgorithm(fileNames, "ant", [1000, 40, 1, 10, 0.3, 500]);
+//runAlgorithm(fileNames, "tabu", [100, 20]);
+runAlgorithm(fileNames, "scatter", [100, 5, 30]);
