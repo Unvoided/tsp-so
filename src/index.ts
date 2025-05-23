@@ -61,7 +61,7 @@ async function runAlgorithm(
     const optimal = optimalFile[fileName];
     const algorithms = {
       ant: () => antColonyOptimization(file, ...params), // e.g., [1000, 40, 1, 10, 0.3, 500]
-      tabu: () => tabuSearch(file, ...params), // e.g., [100, 20]
+      tabu: () => tabuSearch(file, ...params), // e.g., [100]
       scatter: () => scatterSearch(file, ...params), // e.g., [100, 5, 30]
     };
     const result = algorithms[algorithm]();
@@ -74,6 +74,7 @@ async function runAlgorithm(
       deviation: (Math.abs((result.bestDistance - optimal) / optimal) * 100)
         .toFixed(2)
         .concat("%"),
+      params,
     });
   }
 
@@ -81,5 +82,7 @@ async function runAlgorithm(
 }
 
 //runAlgorithm(fileNames, "ant", [1000, 40, 1, 10, 0.3, 500]);
-//runAlgorithm(fileNames, "tabu", [100, 20]);
-runAlgorithm(fileNames, "scatter", [100, 5, 30]);
+runAlgorithm(["kroA100", "kroA150", "kroA200", "kroB100", "kroB150"], "tabu", [
+  500,
+]);
+//runAlgorithm(fileNames, "scatter", [100, 5, 30]);

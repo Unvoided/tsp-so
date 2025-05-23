@@ -124,6 +124,7 @@ export function scatterSearch(
       for (let j = i + 1; j < referenceSet.length; j++) {
         const child = combineTours(referenceSet[i], referenceSet[j]);
         const improved = twoOptImproved(child);
+
         newSolutions.push(improved);
       }
     }
