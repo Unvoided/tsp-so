@@ -3,6 +3,7 @@ import {
   twoOptSwapWithBestImprovement,
 } from "./common.ts";
 import type { Node, TspFile } from "./loader.ts";
+import { nearestNeighbor } from "./neighbour.ts";
 
 /**
  * Combines two tours using a crossover-like strategy.
@@ -66,9 +67,13 @@ export function scatterSearch(
   // Fase inicial ———————————————————————————————————————
 
   // Step 0: Método de geração de soluções siversificadas.
+
+  // Nearest Neighbor Heuristic to get an initial solution.
+  const initialSolution = nearestNeighbor(tsp.nodes);
+
   const population = Array.from({ length: populationSize }, () =>
     // Step 1: Método de melhoramento (2-opt swap improved).
-    twoOptSwapWithBestImprovement(tsp.nodes)
+    twoOptSwapWithBestImprovement(initialSolution)
   );
   // Step 2: Método de atualização do conjunto de referência.
   let referenceSet = population
@@ -114,6 +119,7 @@ export function scatterSearch(
   return {
     bestTour: referenceSet[0],
     bestDistance: calculateTourDistance(referenceSet[0]),
+    initialDistance: calculateTourDistance(initialSolution),
     performance: performance.now() - performanceBegin,
   };
 }

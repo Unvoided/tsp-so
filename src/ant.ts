@@ -136,6 +136,7 @@ export function antColony(
   return {
     bestPath,
     bestDistance,
+    initialDistance: calculateTourDistance(tsp.nodes), // temp
     performance: performance.now() - performanceBegin,
   };
 }

@@ -7,6 +7,7 @@ interface Result {
     file: string | undefined;
     optimal: number;
     cost: number;
+    initialCost: number;
     time: string;
     deviation: string;
     params: number[];
@@ -26,6 +27,7 @@ export function saveResultsToXLSX(
             "File",
             "Optimal",
             "Result Cost",
+            "Initial Cost (Nearest Neighbor)",
             "Time",
             "Deviation",
             "Parameters",
@@ -34,6 +36,7 @@ export function saveResultsToXLSX(
             r.file,
             r.optimal,
             r.cost,
+            r.initialCost,
             r.time,
             r.deviation,
             JSON.stringify(r.params)

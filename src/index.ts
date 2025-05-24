@@ -71,6 +71,7 @@ async function runAlgorithm(
             file: file.name,
             optimal: Math.round(optimal),
             cost: Math.round(result.bestDistance),
+            initialCost: Math.round(result.initialDistance),
             time: (result.performance / 1000).toFixed(1).concat("s"),
             deviation: (Math.abs((result.bestDistance - optimal) / optimal) * 100)
                 .toFixed(2)
@@ -84,15 +85,5 @@ async function runAlgorithm(
     if (exportResults) saveResultsToXLSX(algorithm, results);
 }
 
-//runAlgorithm(fileNames, "ant", [1000, 40, 1, 10, 0.3, 500]);
-runAlgorithm(fileNames, "tabu", [500], true);
-//runAlgorithm(
-//  ["pr107", "pr124", "pr136", "pr144", "pr152", "pr226", "pr264", "pr299"],
-//  "tabu",
-//  [500]
-//);
-// runAlgorithm(
-//     ["pr107", "pr124", "pr136", "pr144", "pr152", "pr226", "pr264", "pr299"],
-//     "scatter",
-//     [100, 5, 30]
-// );
+runAlgorithm(fileNames, "tabu", [100], true);
+//runAlgorithm(fileNames, "scatter", [100, 5, 30], true);
