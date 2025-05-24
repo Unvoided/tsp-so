@@ -45,9 +45,9 @@ function chooseNextNode(
 }
 
 /**
- * Solves the Traveling Salesman Problem using Ant Colony Optimization.
+ * Ant Colony Optimization.
  */
-export function antColonyOptimization(
+export function antColony(
   tsp: TspFile, // The TSP problem instance.
   iterations = 100, // Number of algorithm iterations (higher means better solutions but longer runtime).
   ants = 20, // Number of ants (simulated agents) per iteration.

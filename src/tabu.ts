@@ -1,74 +1,79 @@
 import type { TspFile, Node } from "./loader.ts";
-import { calculateEuclideanDistance, calculateTourDistance } from "./common.ts";
+import { calculateTourDistance, twoOptSwap } from "./common.ts";
 
 /**
- * Performs the Tabu Search algorithm to find an optimized solution for the Traveling Salesman Problem (TSP).
+ * Tabu search algorithm.
  *
  * The algorithm iteratively improves the solution by exploring neighbors and avoiding revisiting
  * recently explored moves using a tabu list. It also allows moves that improve the best solution
  * even if they are in the tabu list.
+ *
+ * Fase inicial ——————————————————————————————————
+ * Step 0: Inicializar a solução corrente, a melhor solução encontrada e lista tabu.
+ *
+ * Fase de pesquisa ——————————————————————————————
+ * For each iteration:
+ * Step 0: Método de melhoramento (2-opt swap).
+ * Step 1: Método de avaliação da nova solução (critério de aspiração).
+ * Step 2: Atualizar a solução corrente.
  */
 export function tabuSearch(
   tsp: TspFile, // The TSP problem instance.
-  maxIterations = 100 // Maximum number of iterations the algorithm will run (stopping criterion).
+  maxIterations = 100 // Maximum number of iterations.
 ) {
   const performanceBegin = performance.now();
 
-  // Initialize current and best solutions.
-  let currentSolution = [...tsp.nodes];
-  let bestSolution = currentSolution;
-  let bestDistance = calculateTourDistance(currentSolution);
-  const initialDistance = bestDistance;
-  const tabuList: Node[][] = [];
+  // Fase inicial ———————————————————————————————————————
+  // Step 0: Inicializar a solução corrente, a melhor solução encontrada e lista tabu.
+  let current = [...tsp.nodes];
+  let bestSolution = [...current];
+  let bestDistance = calculateTourDistance(current);
+  const tabuList: { from: number; to: number }[] = [];
 
-  // Main loop: iterate through potential improvements.
+  // Fase de pesquisa ——————————————————————————————
   for (let iter = 0; iter < maxIterations; iter++) {
-    let bestNeighbor: Node[] | null = null;
-    let bestNeighborDistance = Infinity;
-    let bestMove: Node[] = [];
+    let bestNeighbor: Node[] = [];
+    let bestNeighborCost = Infinity;
+    let bestMove: { from: number; to: number } = { from: -1, to: -1 };
 
-    // Generate neighbors using 2-opt swaps.
-    for (let i = 1; i < currentSolution.length - 1; i++) {
-      for (let k = i + 1; k < currentSolution.length; k++) {
-        // Create a new neighbor by reversing the segment [i, k].
-        const currentNeighbor = [
-          ...currentSolution.slice(0, i),
-          ...currentSolution.slice(i, k + 1).reverse(),
-          ...currentSolution.slice(k + 1),
-        ];
+    for (let i = 1; i < current.length - 1; i++) {
+      for (let k = i + 1; k < current.length; k++) {
+        // Step 0: Método de melhoramento (2-opt swap).
+        const neighbor = twoOptSwap(current, i, k);
+        const distance = calculateTourDistance(neighbor);
 
-        const move = [currentSolution[i], currentSolution[k]];
-        const currentTourDistance = calculateTourDistance(currentNeighbor);
-
-        // Check if move is allowed (not in tabu list or leads to improvement).
-        if (!tabuList.includes(move) || currentTourDistance < bestDistance) {
-          // Track the best neighbor found in this iteration.
-          if (currentTourDistance < bestNeighborDistance) {
-            bestNeighbor = currentNeighbor;
-            bestNeighborDistance = currentTourDistance;
-            bestMove = move;
-          }
+        // Step 1: Método de avaliação da nova solução (critério de aspiração).
+        const hasTabuMove = tabuList.some(
+          (move) => move.from === i && move.to === k
+        );
+        if (
+          // If the move is not tabu or improves the best solution ever found.
+          (!hasTabuMove || distance < bestDistance) &&
+          // And if the neighbor is better than the current best neighbor.
+          distance < bestNeighborCost
+        ) {
+          bestNeighbor = neighbor;
+          bestNeighborCost = distance;
+          bestMove = { from: i, to: k };
         }
       }
     }
 
-    // Skip if no valid neighbor was found.
-    if (!bestNeighbor) continue;
+    // Step 2: Atualizar a solução corrente.
+    if (bestNeighbor.length > 0) {
+      current = bestNeighbor;
+      tabuList.push(bestMove);
 
-    // Move to the best neighbor found.
-    currentSolution = bestNeighbor;
-
-    // Update best known solution if improvement was found.
-    if (bestNeighborDistance < bestDistance) {
-      bestDistance = bestNeighborDistance;
-      bestSolution = bestNeighbor;
+      if (bestNeighborCost < bestDistance) {
+        bestSolution = bestNeighbor;
+        bestDistance = bestNeighborCost;
+      }
     }
   }
 
   return {
     bestSolution,
     bestDistance,
-    initialDistance,
     performance: performance.now() - performanceBegin,
   };
 }

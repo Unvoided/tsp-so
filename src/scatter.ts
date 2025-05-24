@@ -1,82 +1,35 @@
-import { calculateTourDistance } from "./common.ts";
+import {
+  calculateTourDistance,
+  twoOptSwapWithBestImprovement,
+} from "./common.ts";
 import type { Node, TspFile } from "./loader.ts";
-
-/**
- * Randomly shuffles an array using the Fisher-Yates algorithm.
- */
-function shuffle<T>(array: T[]): T[] {
-  const arr = [...array];
-
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-
-  return arr;
-}
-
-/**
- * Improves a TSP tour using the 2-opt algorithm.
- * It iteratively replaces two edges with two different ones to shorten the tour.
- */
-function twoOptImproved(tour: Node[], maxLoops = 100): Node[] {
-  let best = [...tour];
-  let bestDistance = calculateTourDistance(best);
-  let improved = true;
-  let loops = 0;
-
-  while (improved && loops < maxLoops) {
-    improved = false;
-    loops++;
-
-    for (let i = 1; i < best.length - 1; i++) {
-      for (let k = i + 1; k < best.length; k++) {
-        // Generate a new tour by reversing a segment between i and k
-        const newTour = [
-          ...best.slice(0, i),
-          ...best.slice(i, k + 1).reverse(),
-          ...best.slice(k + 1),
-        ];
-        const newDistance = calculateTourDistance(newTour);
-
-        // If the new tour is better, accept it
-        if (newDistance < bestDistance) {
-          best = newTour;
-          bestDistance = newDistance;
-          improved = true;
-        }
-      }
-    }
-  }
-
-  return best;
-}
 
 /**
  * Combines two tours using a crossover-like strategy.
  * Preserves a segment from the first parent and fills in the rest from the second.
  */
-function combineTours(t1: Node[], t2: Node[]): Node[] {
-  const size = t1.length;
-  const child: Node[] = new Array(size);
+function combineToursWithCrossover(tour1: Node[], tour2: Node[]): Node[] {
+  const size = tour1.length;
+  const child = new Array(size);
   const used = new Set<number>();
 
-  // Random segment [start, end] from the first tour
+  // Random segment [start, end] from the first tour.
   const [start, end] = [
     Math.floor(Math.random() * size),
     Math.floor(Math.random() * size),
   ].sort((a, b) => a - b);
 
-  // Copy the segment from the first parent
+  // Copy the segment from the first parent.
   for (let i = start; i <= end; i++) {
-    child[i] = t1[i];
-    used.add(t1[i].id);
+    child[i] = tour1[i];
+    used.add(tour1[i].id);
   }
 
-  // Fill remaining positions with nodes from the second parent
+  // Fill remaining positions with nodes from the second parent.
   let idx = 0;
   for (let i = 0; i < size; i++) {
-    const node = t2[i];
+    const node = tour2[i];
+
     if (!used.has(node.id)) {
       while (child[idx]) idx++;
       child[idx] = node;
@@ -88,67 +41,79 @@ function combineTours(t1: Node[], t2: Node[]): Node[] {
 }
 
 /**
- * Main Scatter Search algorithm for solving the TSP.
+ * Scatter cearch algorithm.
+ *
+ * Fase inicial ————————————————————————————————————————————————————
+ * Step 0: Método de geração de soluções diversificadas
+ * Step 1: Método de melhoramento (2-opt swap improved).
+ * Step 2: Método de atualização do conjunto de referência (& slice elit solutions).
+ *
+ * Fase de pesquisa por dispersão ——————————————————————————————————
+ * While (existirem novas soluções no conjunto de referência)
+ * Step 0: Método de geração de subconjuntos (crossover + 2-opt swap improved + slice elite solutions).
+ * Step 1: Método de combinação de soluções (crossover).
+ * Step 2: Método de melhoramento (2-opt swap improved).
+ * Step 3: Método de atualização do conjunto de referência (slice elit solutions).
  */
 export function scatterSearch(
   tsp: TspFile, // The TSP problem instance.
-  maxIterations = 100, // Maximum number of iterations
-  refSetSize = 5, // Size of the reference set (elite solutions)
-  candidateSize = 30 // Number of initial random candidate solutions
+  maxIterations = 100, // Maximum number of iterations.
+  eliteSolutionsSize = 5, // Size of elit solutions.
+  populationSize = 30 // Size of the initial population.
 ) {
-  const performanceBegin = performance.now(); // Start timer
-  const candidatePool: Node[][] = [];
+  const performanceBegin = performance.now();
 
-  // Step 1: Generate and improve candidate solutions
-  for (let i = 0; i < candidateSize; i++) {
-    const randomTour = shuffle(tsp.nodes);
-    const improved = twoOptImproved(randomTour);
-    candidatePool.push(improved);
-  }
+  // Fase inicial ———————————————————————————————————————
 
-  // Step 2: Select the best candidates to form the initial reference set
-  candidatePool.sort(
-    (a, b) => calculateTourDistance(a) - calculateTourDistance(b)
+  // Step 0: Método de geração de soluções siversificadas.
+  const population = Array.from({ length: populationSize }, () =>
+    // Step 1: Método de melhoramento (2-opt swap improved).
+    twoOptSwapWithBestImprovement(tsp.nodes)
   );
-  let referenceSet = candidatePool.slice(0, refSetSize);
-  let bestTour = referenceSet[0];
-  let bestDistance = calculateTourDistance(bestTour);
-  const initialDistance = bestDistance;
+  // Step 2: Método de atualização do conjunto de referência.
+  let referenceSet = population
+    .sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b))
+    .slice(0, eliteSolutionsSize);
 
-  // Step 3: Iteratively combine reference solutions and improve them
+  // Fase de pesquisa por dispersão ————————————————————————
+
+  // Step 0: Método de geração de subconjuntos (crossover + 2-opt swap improved + slice elite solutions).
   for (let iter = 0; iter < maxIterations; iter++) {
     const newSolutions: Node[][] = [];
 
-    // Combine each pair of solutions in the reference set
     for (let i = 0; i < referenceSet.length; i++) {
-      for (let j = i + 1; j < referenceSet.length; j++) {
-        const child = combineTours(referenceSet[i], referenceSet[j]);
-        const improved = twoOptImproved(child);
+      for (let k = i + 1; k < referenceSet.length; k++) {
+        // Step 1: Método de combinação de soluções (crossover).
+        const combined = combineToursWithCrossover(
+          referenceSet[i],
+          referenceSet[k]
+        );
+        // Step 2: Método de melhoramento (2-opt swap improved).
+        const improved = twoOptSwapWithBestImprovement(combined);
 
         newSolutions.push(improved);
       }
     }
 
-    // Step 4: Update reference set with the best combined solutions
-    const combined = [...referenceSet, ...newSolutions];
-    combined.sort(
-      (a, b) => calculateTourDistance(a) - calculateTourDistance(b)
-    );
-    const newBest = combined[0];
-    const newBestDistance = calculateTourDistance(newBest);
-
-    // If no improvement, stop early
-    if (newBestDistance >= bestDistance) break;
-
-    bestTour = newBest;
-    bestDistance = newBestDistance;
-    referenceSet = combined.slice(0, refSetSize);
+    // Step 3: Método de atualização do conjunto de referência (slice elit solutions).
+    for (const solution of newSolutions) {
+      if (
+        !referenceSet.some((tour) => {
+          return calculateTourDistance(tour) <= calculateTourDistance(solution);
+        })
+      ) {
+        referenceSet.push(solution);
+        referenceSet.sort(
+          (a, b) => calculateTourDistance(a) - calculateTourDistance(b)
+        );
+        referenceSet = referenceSet.slice(0, eliteSolutionsSize);
+      }
+    }
   }
 
   return {
-    bestTour,
-    bestDistance,
-    initialDistance,
+    bestTour: referenceSet[0],
+    bestDistance: calculateTourDistance(referenceSet[0]),
     performance: performance.now() - performanceBegin,
   };
 }

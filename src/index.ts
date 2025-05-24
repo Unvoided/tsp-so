@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { antColonyOptimization } from "./ant.ts";
+import { antColony } from "./ant.ts";
 import { readTspFile } from "./loader.ts";
 import { scatterSearch } from "./scatter.ts";
 import { tabuSearch } from "./tabu.ts";
@@ -60,7 +60,7 @@ async function runAlgorithm(
     );
     const optimal = optimalFile[fileName];
     const algorithms = {
-      ant: () => antColonyOptimization(file, ...params), // e.g., [1000, 40, 1, 10, 0.3, 500]
+      ant: () => antColony(file, ...params), // e.g., [1000, 40, 1, 10, 0.3, 500]
       tabu: () => tabuSearch(file, ...params), // e.g., [100]
       scatter: () => scatterSearch(file, ...params), // e.g., [100, 5, 30]
     };
@@ -82,7 +82,14 @@ async function runAlgorithm(
 }
 
 //runAlgorithm(fileNames, "ant", [1000, 40, 1, 10, 0.3, 500]);
-runAlgorithm(["kroA100", "kroA150", "kroA200", "kroB100", "kroB150"], "tabu", [
-  500,
-]);
-//runAlgorithm(fileNames, "scatter", [100, 5, 30]);
+//runAlgorithm(["kroA100", "kroA150", "kroA200", "kroB100", "kroB150"], "tabu", [500]);
+//runAlgorithm(
+//  ["pr107", "pr124", "pr136", "pr144", "pr152", "pr226", "pr264", "pr299"],
+//  "tabu",
+//  [500]
+//);
+runAlgorithm(
+  ["pr107", "pr124", "pr136", "pr144", "pr152", "pr226", "pr264", "pr299"],
+  "scatter",
+  [100, 5, 30]
+);
