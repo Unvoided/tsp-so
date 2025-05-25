@@ -1,5 +1,6 @@
-import { calculateEuclideanDistance, calculateTourDistance } from "./common.ts";
+import { calculateEuclideanDistance, calculateTourDistance, twoOptSwapWithBestImprovement } from "./common.ts";
 import type { Node, TspFile } from "./loader.ts";
+import { nearestNeighbour } from "./neighbour.ts";
 
 /**
  * Chooses the next node to visit based on pheromone levels and heuristic desirability.
@@ -15,28 +16,31 @@ function chooseNextNode(
   const probabilities: number[] = [];
   let sum = 0;
 
-  // Calculate the probability for each unvisited node
   for (const node of unvisited) {
+    // Skip if distance is 0 to avoid division by zero (shouldn't happen for distinct nodes but as safety)
+    if (distances[current][node] === 0) continue;
+
     const tau = Math.pow(pheromones[current][node], alpha);
     const eta = Math.pow(1 / distances[current][node], beta);
     const prob = tau * eta;
 
     probabilities.push(prob);
-
     sum += prob;
   }
 
-  // Normalize the probabilities so they sum to 1.
+  // Handle cases where sum might be 0 (e.g., if all unvisited nodes had 0 distance, though unlikely for TSP)
+  if (sum === 0) {
+    // Fallback: return any unvisited node, or the first one
+    return [...unvisited][0];
+  }
+
   const normalized = probabilities.map((p) => p / sum);
   let r = Math.random();
   let cumulative = 0;
-  let index = 0;
+  let index = 0; // Use an index to iterate through the normalized probabilities
 
-  // Traverse through unvisited nodes in order to find selected node.
-  for (const node of unvisited) {
+  for (const node of unvisited) { // Iterate through unvisited nodes to match original order
     cumulative += normalized[index++];
-
-    // Return the node where cumulative probability exceeds random threshold.
     if (r <= cumulative) return node;
   }
 
@@ -58,85 +62,104 @@ export function antColony(
 ) {
   const performanceBegin = performance.now();
   const n = tsp.nodes.length;
+
   // Compute distance matrix between all nodes.
   const distances = Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) =>
       calculateEuclideanDistance(tsp.nodes[i], tsp.nodes[j])
     )
   );
-  // Initialize pheromone levels between all node pairs.
-  const pheromones = Array.from({ length: n }, () => Array(n).fill(1));
-  let bestPath: Node[] = [];
-  let bestDistance = Infinity;
+
+  // Nearest neighbour for initial best path
+  const initialTour = nearestNeighbour(tsp.nodes);
+  const initialDistance = calculateTourDistance(initialTour);
+
+  // Initialize pheromone levels between all node pairs uniformly.
+  const pheromones = Array.from({ length: n }, () => Array(n).fill(1)); // All roads start with 1 unit of pheromone
+
+  let bestPath: Node[] = [...initialTour]; // Initialize best path with a copy of Nearest Neighbor tour
+  let bestDistance = initialDistance;
 
   // Main loop over number of iterations.
   for (let iter = 0; iter < iterations; iter++) {
-    const allPaths: number[][] = [];
-    const allLengths: number[] = [];
+    // In this strategy, we don't store all ant paths, only potentially update the global best.
+    // const allPaths: number[][] = [];
+    // const allLengths: number[] = [];
 
     // Simulate each ant's tour.
     for (let k = 0; k < ants; k++) {
-      const path: number[] = [];
+      const currentAntPathIndices: number[] = []; // Ant's path as indices
       const unvisited = new Set<number>(Array.from({ length: n }, (_, i) => i));
-      let current = Math.floor(Math.random() * n);
+      let currentIdx = Math.floor(Math.random() * n); // Start from a random node index
 
-      path.push(current);
-      unvisited.delete(current);
+      currentAntPathIndices.push(currentIdx);
+      unvisited.delete(currentIdx);
 
       // Construct a tour by moving to unvisited nodes.
       while (unvisited.size > 0) {
-        const next = chooseNextNode(
-          current,
+        const nextIdx = chooseNextNode(
+          currentIdx,
           unvisited,
           pheromones,
           distances,
           alpha,
           beta
         );
-        path.push(next);
-        unvisited.delete(next);
-        current = next;
+        currentAntPathIndices.push(nextIdx);
+        unvisited.delete(nextIdx);
+        currentIdx = nextIdx;
       }
 
-      // Calculate length of this tour.
-      const len = calculateTourDistance(path.map((i) => tsp.nodes[i]));
-      allPaths.push(path);
-      allLengths.push(len);
+      // Convert the ant's raw tour indices to Node objects for distance calculation
+      const currentAntTourNodes: Node[] = currentAntPathIndices.map((idx) => tsp.nodes[idx]);
+      const currentAntTourLength = calculateTourDistance(currentAntTourNodes);
 
-      // Update best path if this one is shorter.
-      if (len < bestDistance) {
-        bestDistance = len;
-        bestPath = path.map((i) => tsp.nodes[i]);
+      // Only update the global best if this ant found a shorter *raw* path
+      if (currentAntTourLength < bestDistance) {
+        bestDistance = currentAntTourLength;
+        bestPath = currentAntTourNodes; // Store the Node[] version
       }
-    }
+    } // End of ants loop
 
-    // Evaporate pheromones on all edges.
+    // --- Pheromone Evaporation ---
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         pheromones[i][j] *= 1 - evaporation;
       }
     }
 
-    // Add pheromones based on paths taken by ants.
-    for (let k = 0; k < ants; k++) {
-      const path = allPaths[k];
-      const len = allLengths[k];
-      const deposit = Q / len;
+    // --- Apply 2-Opt to the GLOBAL BEST PATH (bestPath) ---
+    // This is the main performance optimization: 2-Opt is run only once per iteration on the best path found.
+    const optimizedBestPath = twoOptSwapWithBestImprovement(bestPath);
+    const optimizedBestDistance = calculateTourDistance(optimizedBestPath);
 
-      for (let i = 0; i < path.length; i++) {
-        const from = path[i];
-        const to = path[(i + 1) % path.length];
+    // Update global best if the 2-Opt improved path is even better
+    if (optimizedBestDistance < bestDistance) {
+      bestDistance = optimizedBestDistance;
+      bestPath = optimizedBestPath;
+    }
 
-        pheromones[from][to] += deposit;
-        pheromones[to][from] += deposit;
+    // --- Pheromone Deposit based ONLY on the (2-Opt optimized) bestPath ---
+    // This strategy is common in ACS/MMAS, where only the global best deposits pheromone
+    // to provide stronger, high-quality guidance.
+    const depositAmount = Q / bestDistance;
+    for (let i = 0; i < bestPath.length; i++) {
+      const fromNode = bestPath[i];
+      const toNode = bestPath[(i + 1) % bestPath.length];
+      const fromIdx = tsp.nodes.indexOf(fromNode); // Get index from Node object
+      const toIdx = tsp.nodes.indexOf(toNode); // Get index from Node object
+
+      if (fromIdx !== -1 && toIdx !== -1) { // Safety check, should always be true
+        pheromones[fromIdx][toIdx] += depositAmount;
+        pheromones[toIdx][fromIdx] += depositAmount;
       }
     }
-  }
+  } // End of iterations loop
 
   return {
     bestPath,
     bestDistance,
-    initialDistance: calculateTourDistance(tsp.nodes), // temp
+    initialDistance,
     performance: performance.now() - performanceBegin,
   };
 }
