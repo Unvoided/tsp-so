@@ -9,7 +9,7 @@ import { calculateEuclideanDistance } from "./common.ts"; // Assumindo que calcu
  * @param nodes - An array of nodes representing the cities to visit.
  * @returns An array of nodes representing the tour.
  */
-export function nearestNeighbor(nodes: Node[]): Node[] {
+export function nearestNeighbour(nodes: Node[]): Node[] {
     // Start from a random node
     const startNode = nodes[Math.floor(Math.random() * nodes.length)];
     const tour: Node[] = [startNode];

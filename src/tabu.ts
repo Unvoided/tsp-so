@@ -1,6 +1,6 @@
 import type { TspFile, Node } from "./loader.ts";
 import { calculateTourDistance, twoOptSwap } from "./common.ts";
-import { nearestNeighbor } from "./neighbour.ts";
+import { nearestNeighbour } from "./neighbour.ts";
 
 /**
  * Tabu search algorithm.
@@ -28,7 +28,7 @@ export function tabuSearch(
   // Step 0: Inicializar a solução corrente, a melhor solução encontrada e lista tabu.
 
   // Nearest Neighbor Heuristic to get an initial solution.
-  const initialSolution = nearestNeighbor(tsp.nodes);
+  const initialSolution = nearestNeighbour(tsp.nodes);
 
   let current = [...initialSolution]
   let bestSolution = [...current];
