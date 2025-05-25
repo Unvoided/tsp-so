@@ -1,13 +1,5 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { antColony } from "./ant.ts";
-import { readTspFile } from "./loader.ts";
-import { scatterSearch } from "./scatter.ts";
-import { tabuSearch } from "./tabu.ts";
-import { saveResultsToXLSX } from "./xlsx.ts"
-/**
- * Files.
- */
+import { Worker } from "node:worker_threads";
+
 const fileNames = [
     "a280",
     "bier127",
@@ -40,50 +32,36 @@ const fileNames = [
     "tsp225",
     "u159",
 ];
-const optimalFile = JSON.parse(
-    fs.readFileSync(path.join("./assets", "optimal.json"), "utf-8")
-);
 
-/**
- * Run algorithm.
- */
-async function runAlgorithm(
-    fileNames: string[],
-    algorithm: "ant" | "tabu" | "scatter",
-    params: number[],
-    exportResults: boolean = false
-) {
-    const results = [];
 
-    for (const fileName of fileNames) {
-        const file = await readTspFile(
-            path.join("./assets/problems", fileName.concat(".tsp"))
-        );
-        const optimal = optimalFile[fileName];
-        const algorithms = {
-            ant: () => antColony(file, ...params), // e.g., [1000, 40, 1, 10, 0.3, 500]
-            tabu: () => tabuSearch(file, ...params), // e.g., [100]
-            scatter: () => scatterSearch(file, ...params), // e.g., [100, 5, 30]
-        };
-        const result = algorithms[algorithm]();
-
-        results.push({
-            file: file.name,
-            optimal: Math.round(optimal),
-            cost: Math.round(result.bestDistance),
-            initialCost: Math.round(result.initialDistance),
-            time: (result.performance / 1000).toFixed(1).concat("s"),
-            deviation: (Math.abs((result.bestDistance - optimal) / optimal) * 100)
-                .toFixed(2)
-                .concat("%"),
+[
+    { algorithm: "ant", params: [100, 75, 1, 5, 0.7, 100] },
+    { algorithm: "tabu", params: [100] },
+    { algorithm: "scatter", params: [100, 5, 30] }
+].forEach(({ algorithm, params }) => {
+    const worker = new Worker("./src/worker.ts", {
+        workerData: [
+            fileNames,
+            algorithm,
             params,
-        });
-    }
+            true // Export results to XLSX
+        ]
+    });
 
-    console.table(results);
+    worker.on("message", (results) => {
+        console.table(results.map((r: any) => ({
+            algorithm,
+            ...r
+        })));
+    });
 
-    if (exportResults) saveResultsToXLSX(algorithm, results);
-}
+    worker.on("error", (error) => {
+        console.error(`Error in ${algorithm} worker:`, error);
+    });
 
-runAlgorithm(fileNames, "tabu", [100], true);
-//runAlgorithm(fileNames, "scatter", [100, 5, 30], true);
+    worker.on("exit", (code) => {
+        if (code !== 0) {
+            console.error(`Worker stopped with exit code ${code}`);
+        }
+    });
+});
