@@ -2,8 +2,22 @@ import { calculateEuclideanDistance, calculateTourDistance, twoOptSwapWithBestIm
 import type { Node, TspFile } from "./loader.ts";
 import { nearestNeighbour } from "./neighbour.ts";
 
+
 /**
- * Chooses the next node to visit based on pheromone levels and heuristic desirability.
+ * Selects the next node to visit in the Ant Colony Optimization algorithm based on pheromone levels and distances.
+ * 
+ * The probability of choosing a node is proportional to the pheromone level (raised to the power of `alpha`)
+ * and the inverse of the distance (raised to the power of `beta`). If all probabilities are zero, the function
+ * falls back to returning the first unvisited node.
+ *
+ * @param current - The index of the current node.
+ * @param unvisited - A set of indices representing nodes that have not yet been visited.
+ * @param pheromones - A 2D array representing the pheromone levels between nodes.
+ * @param distances - A 2D array representing the distances between nodes.
+ * @param alpha - The influence factor of pheromone trails (higher values give more importance to pheromones).
+ * @param beta - The influence factor of heuristic information (higher values give more importance to shorter distances).
+ * @returns The index of the next node to visit.
+ *
  */
 function chooseNextNode(
   current: number,
@@ -48,8 +62,30 @@ function chooseNextNode(
   return [...unvisited][0];
 }
 
+
 /**
- * Ant Colony Optimization.
+ * Solves the Traveling Salesman Problem (TSP) using the Ant Colony Optimization (ACO) algorithm,
+ * enhanced with 2-Opt local search applied to the global best path in each iteration.
+ * 
+ * - The algorithm initializes pheromone levels uniformly and updates them based on the best path found in each iteration.
+ * - Each ant constructs a tour probabilistically, influenced by pheromone trails and heuristic information.
+ * - After all ants have constructed their tours, pheromone evaporation and deposit are performed.
+ * - The global best path is further optimized using the 2-Opt local search heuristic.
+ * - Only the best path (after 2-Opt optimization) is used for pheromone deposit in each iteration.
+ *
+ * @param tsp - The TSP problem instance containing the nodes to visit.
+ * @param iterations - Number of algorithm iterations to perform (higher values may yield better solutions but increase runtime). Default is 100.
+ * @param ants - Number of ants (simulated agents) per iteration. Default is 20.
+ * @param alpha - Relative importance of pheromone strength when choosing the next node (higher values make ants more influenced by pheromones). Default is 1.
+ * @param beta - Relative importance of heuristic information (e.g., inverse distance) when choosing the next node (higher values make ants prefer shorter edges). Default is 5.
+ * @param evaporation - Pheromone evaporation rate (how quickly old pheromones fade, range: 0–1). Default is 0.5.
+ * @param Q - Pheromone deposit factor (amount of pheromone added by each ant based on tour quality). Default is 100.
+ * @returns An object containing:
+ *   - `bestPath`: The best tour found as an array of nodes.
+ *   - `bestDistance`: The total distance of the best tour found.
+ *   - `initialDistance`: The distance of the initial tour found by the nearest neighbour heuristic.
+ *   - `performance`: The elapsed time (in milliseconds) taken to run the algorithm.
+ *
  */
 export function antColony(
   tsp: TspFile, // The TSP problem instance.
@@ -140,8 +176,6 @@ export function antColony(
     }
 
     // --- Pheromone Deposit based ONLY on the (2-Opt optimized) bestPath ---
-    // This strategy is common in ACS/MMAS, where only the global best deposits pheromone
-    // to provide stronger, high-quality guidance.
     const depositAmount = Q / bestDistance;
     for (let i = 0; i < bestPath.length; i++) {
       const fromNode = bestPath[i];
@@ -154,7 +188,7 @@ export function antColony(
         pheromones[toIdx][fromIdx] += depositAmount;
       }
     }
-  } // End of iterations loop
+  }
 
   return {
     bestPath,

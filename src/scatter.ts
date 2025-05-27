@@ -5,9 +5,18 @@ import {
 import type { Node, TspFile } from "./loader.ts";
 import { nearestNeighbour } from "./neighbour.ts";
 
+
 /**
- * Combines two tours using a crossover-like strategy.
- * Preserves a segment from the first parent and fills in the rest from the second.
+ * Combines two tours using a crossover operation to produce a new child tour.
+ *
+ * This function implements a genetic algorithm crossover technique, where a random segment
+ * from the first parent tour (`tour1`) is copied into the child, and the remaining positions
+ * are filled with nodes from the second parent tour (`tour2`) in their original order,
+ * skipping any nodes already present in the child.
+ *
+ * @param tour1 - The first parent tour, represented as an array of `Node` objects.
+ * @param tour2 - The second parent tour, represented as an array of `Node` objects.
+ * @returns A new tour (array of `Node` objects) resulting from the crossover of `tour1` and `tour2`.
  */
 function combineToursWithCrossover(tour1: Node[], tour2: Node[]): Node[] {
   const size = tour1.length;
@@ -42,65 +51,71 @@ function combineToursWithCrossover(tour1: Node[], tour2: Node[]): Node[] {
 }
 
 /**
- * Scatter cearch algorithm.
+ * Implements the Scatter Search metaheuristic for the Traveling Salesman Problem (TSP).
  *
- * Fase inicial ————————————————————————————————————————————————————
- * Step 0: Método de geração de soluções diversificadas
- * Step 1: Método de melhoramento (2-opt swap improved).
- * Step 2: Método de atualização do conjunto de referência (& slice elit solutions).
+ * The algorithm works as follows:
+ * 1. Generates an initial population of solutions using the nearest neighbour heuristic,
+ *    each improved by the 2-opt local search.
+ * 2. Selects an elite set of solutions (reference set) based on tour distance.
+ * 3. Iteratively combines pairs of elite solutions using a crossover-like operator,
+ *    followed by 2-opt improvement, to generate new candidate solutions.
+ * 4. Updates the reference set by including new solutions if they are better than
+ *    the current elite members, maintaining the elite set size.
+ * 5. Returns the best tour found, its distance, the initial solution's distance,
+ *    and the total computation time.
  *
- * Fase de pesquisa por dispersão ——————————————————————————————————
- * While (existirem novas soluções no conjunto de referência)
- * Step 0: Método de geração de subconjuntos (crossover + 2-opt swap improved + slice elite solutions).
- * Step 1: Método de combinação de soluções (crossover).
- * Step 2: Método de melhoramento (2-opt swap improved).
- * Step 3: Método de atualização do conjunto de referência (slice elit solutions).
+ * @param tsp - The TSP problem instance containing the nodes to visit.
+ * @param maxIterations - Maximum number of scatter search iterations (default: 100).
+ * @param eliteSolutionsSize - Number of elite solutions to maintain in the reference set (default: 5).
+ * @param populationSize - Number of initial solutions to generate (default: 30).
+ * @returns An object containing:
+ *   - `bestTour`: The best tour found (array of nodes).
+ *   - `bestDistance`: The total distance of the best tour.
+ *   - `initialDistance`: The distance of the initial solution.
+ *   - `performance`: The elapsed computation time in milliseconds.
  */
 export function scatterSearch(
   tsp: TspFile, // The TSP problem instance.
   maxIterations = 100, // Maximum number of iterations.
-  eliteSolutionsSize = 5, // Size of elit solutions.
+  eliteSolutionsSize = 5, // Size of elite solutions.
   populationSize = 30 // Size of the initial population.
 ) {
   const performanceBegin = performance.now();
 
-  // Fase inicial ———————————————————————————————————————
-
-  // Step 0: Método de geração de soluções siversificadas.
-
-  // Nearest Neighbor Heuristic to get an initial solution.
+  // Generate an initial solution using the nearest neighbour heuristic.
   const initialSolution = nearestNeighbour(tsp.nodes);
 
+  // Create the initial population by applying 2-opt improvement to the initial solution.
   const population = Array.from({ length: populationSize }, () =>
-    // Step 1: Método de melhoramento (2-opt swap improved).
     twoOptSwapWithBestImprovement(initialSolution)
   );
-  // Step 2: Método de atualização do conjunto de referência.
+
+  // Select the best solutions to form the reference (elite) set.
   let referenceSet = population
     .sort((a, b) => calculateTourDistance(a) - calculateTourDistance(b))
     .slice(0, eliteSolutionsSize);
 
-  // Fase de pesquisa por dispersão ————————————————————————
-
-  // Step 0: Método de geração de subconjuntos (crossover + 2-opt swap improved + slice elite solutions).
   for (let iter = 0; iter < maxIterations; iter++) {
     const newSolutions: Node[][] = [];
 
+    // Combine each pair of elite solutions to generate new candidates.
     for (let i = 0; i < referenceSet.length; i++) {
       for (let k = i + 1; k < referenceSet.length; k++) {
-        // Step 1: Método de combinação de soluções (crossover).
+
+        // Combine two tours using the crossover operator.
         const combined = combineToursWithCrossover(
           referenceSet[i],
           referenceSet[k]
         );
-        // Step 2: Método de melhoramento (2-opt swap improved).
+
+        // Improve the combined tour using 2-opt.
         const improved = twoOptSwapWithBestImprovement(combined);
 
         newSolutions.push(improved);
       }
     }
 
-    // Step 3: Método de atualização do conjunto de referência (slice elit solutions).
+    // Update the reference set if new solutions are better than current elite members.
     for (const solution of newSolutions) {
       if (
         !referenceSet.some((tour) => {
