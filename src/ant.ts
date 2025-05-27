@@ -118,9 +118,6 @@ export function antColony(
 
   // Main loop over number of iterations.
   for (let iter = 0; iter < iterations; iter++) {
-    // In this strategy, we don't store all ant paths, only potentially update the global best.
-    // const allPaths: number[][] = [];
-    // const allLengths: number[] = [];
 
     // Simulate each ant's tour.
     for (let k = 0; k < ants; k++) {
@@ -164,8 +161,7 @@ export function antColony(
       }
     }
 
-    // --- Apply 2-Opt to the GLOBAL BEST PATH (bestPath) ---
-    // This is the main performance optimization: 2-Opt is run only once per iteration on the best path found.
+    // 2-Opt is run only once per iteration on the best path found.
     const optimizedBestPath = twoOptSwapWithBestImprovement(bestPath);
     const optimizedBestDistance = calculateTourDistance(optimizedBestPath);
 
