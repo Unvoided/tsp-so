@@ -1,5 +1,5 @@
 import type { Node } from "./loader.ts";
-import { calculateEuclideanDistance } from "./common.ts"; // Assumindo que calculateDistance está em common.ts
+import { calculateEuclideanDistance } from "./common.ts";
 
 /**
  * Nearest Neighbor algorithm for solving the Traveling Salesman Problem.
