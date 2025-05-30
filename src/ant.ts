@@ -30,6 +30,8 @@ function chooseNextNode(
   const probabilities: number[] = [];
   let sum = 0;
 
+  // Iterate through unvisited nodes to calculate probabilities
+  // based on pheromone levels and distances.
   for (const node of unvisited) {
     // Skip if distance is 0 to avoid division by zero (shouldn't happen for distinct nodes but as safety)
     if (distances[current][node] === 0) continue;
